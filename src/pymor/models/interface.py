@@ -6,7 +6,7 @@ import numpy as np
 
 from pymor.core.cache import CacheableObject
 from pymor.operators.constructions import induced_norm
-from pymor.parameters.base import ParametricObject, Mu
+from pymor.parameters.base import Parameters, ParametricObject, Mu
 from pymor.tools.frozendict import FrozenDict
 
 
@@ -37,13 +37,15 @@ class Model(CacheableObject, ParametricObject):
     linear = False
     products = FrozenDict()
 
-    def __init__(self, products=None, error_estimator=None, visualizer=None,
+    def __init__(self, dim_input=0, products=None, error_estimator=None, visualizer=None,
                  name=None):
         products = FrozenDict(products or {})
         if products:
             for k, v in products.items():
                 setattr(self, f'{k}_product', v)
                 setattr(self, f'{k}_norm', induced_norm(v))
+
+        self.parameters_internal = {'input': dim_input}
 
         self.__auto_init(locals())
 
@@ -103,10 +105,7 @@ class Model(CacheableObject, ParametricObject):
         |NumPy array| with the computed output or a dict which at least
         must contain the key `'output'`.
         """
-        if not getattr(self, 'output_functional', None):
-            return np.zeros((len(solution), 0))
-        else:
-            return self.output_functional.apply(solution, mu=mu).to_numpy()
+        return self.output_functional.apply(solution, mu=mu).to_numpy()
 
     def _compute_solution_d_mu_single_direction(self, parameter, index, solution, mu=None, **kwargs):
         """Compute the partial derivative of the solution w.r.t. a parameter index
@@ -172,17 +171,18 @@ class Model(CacheableObject, ParametricObject):
         U_d_mus = self._compute_solution_d_mu(solution, mu)
         gradients = [] if return_array else {}
         for (parameter, size) in self.parameters.items():
-            array = np.empty(shape=(size, self.output_functional.range.dim))
+            result = []
             for index in range(size):
                 output_partial_dmu = self.output_functional.d_mu(parameter, index).apply(
                     solution, mu=mu).to_numpy()[0]
                 U_d_mu = U_d_mus[parameter][index]
-                array[index] = output_partial_dmu + self.output_functional.jacobian(
-                    solution, mu).apply(U_d_mu, mu).to_numpy()[0]
+                result.append(output_partial_dmu + self.output_functional.jacobian(
+                    solution, mu).apply(U_d_mu, mu).to_numpy()[0])
+            result = np.array(result)
             if return_array:
-                gradients.extend(array)
+                gradients.extend(result)
             else:
-                gradients[parameter] = array
+                gradients[parameter] = result
         if return_array:
             return np.array(gradients)
         else:
@@ -260,7 +260,7 @@ class Model(CacheableObject, ParametricObject):
 
     def compute(self, solution=False, output=False, solution_d_mu=False, output_d_mu=False,
                 solution_error_estimate=False, output_error_estimate=False,
-                output_d_mu_return_array=False, *, mu=None, **kwargs):
+                output_d_mu_return_array=False, *, mu=None, input=None, **kwargs):
         """Compute the solution of the model and associated quantities.
 
         This methods computes the output of the model it's internal state
@@ -299,6 +299,12 @@ class Model(CacheableObject, ParametricObject):
             Otherwise, return a dict of gradients for each |Parameter|.
         mu
             |Parameter values| for which to compute the values.
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         kwargs
             Further keyword arguments to select further quantities that sould
             be returned or to customize how the values are computed.
@@ -309,11 +315,17 @@ class Model(CacheableObject, ParametricObject):
         """
         # make sure no unknown kwargs are passed
         assert kwargs.keys() <= self._compute_allowed_kwargs
+        assert input is not None or self.dim_input == 0
 
         # parse parameter values
         if not isinstance(mu, Mu):
             mu = self.parameters.parse(mu)
         assert self.parameters.assert_compatible(mu)
+
+        # parse input and add it to the parameter values
+        mu_input = Parameters(input=self.dim_input).parse(input)
+        input = mu_input.get_time_dependent_value('input') if mu_input.is_time_dependent('input') else mu_input['input']
+        mu = mu.with_(input=input)
 
         # log output
         # explicitly checking if logging is disabled saves some cpu cycles
@@ -389,7 +401,7 @@ class Model(CacheableObject, ParametricObject):
 
         return data
 
-    def solve(self, mu=None, return_error_estimate=False, **kwargs):
+    def solve(self, mu=None, input=None, return_error_estimate=False, **kwargs):
         """Solve the discrete problem for the |parameter values| `mu`.
 
         This method returns a |VectorArray| with a internal state
@@ -404,6 +416,12 @@ class Model(CacheableObject, ParametricObject):
         ----------
         mu
             |Parameter values| for which to solve.
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         return_error_estimate
             If `True`, also return an error estimate for the computed solution.
         kwargs
@@ -419,6 +437,7 @@ class Model(CacheableObject, ParametricObject):
             solution=True,
             solution_error_estimate=return_error_estimate,
             mu=mu,
+            input=input,
             **kwargs
         )
         if return_error_estimate:
@@ -426,7 +445,7 @@ class Model(CacheableObject, ParametricObject):
         else:
             return data['solution']
 
-    def output(self, mu=None, return_error_estimate=False, **kwargs):
+    def output(self, mu=None, input=None, return_error_estimate=False, **kwargs):
         """Return the model output for given |parameter values| `mu`.
 
         This method is a convenience wrapper around :meth:`compute`.
@@ -435,6 +454,12 @@ class Model(CacheableObject, ParametricObject):
         ----------
         mu
             |Parameter values| for which to compute the output.
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         return_error_estimate
             If `True`, also return an error estimate for the computed output.
         kwargs
@@ -454,6 +479,7 @@ class Model(CacheableObject, ParametricObject):
             output=True,
             output_error_estimate=return_error_estimate,
             mu=mu,
+            input=input,
             **kwargs
         )
         if return_error_estimate:
@@ -461,7 +487,7 @@ class Model(CacheableObject, ParametricObject):
         else:
             return data['output']
 
-    def solve_d_mu(self, parameter, index, mu=None, **kwargs):
+    def solve_d_mu(self, parameter, index, mu=None, input=None, **kwargs):
         """Solve for the partial derivative of the solution w.r.t. a parameter index
 
         Parameters
@@ -472,6 +498,12 @@ class Model(CacheableObject, ParametricObject):
             parameter index for which to compute the sensitivity
         mu
             |Parameter value| for which to solve
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
 
         Returns
         -------
@@ -480,17 +512,24 @@ class Model(CacheableObject, ParametricObject):
         data = self.compute(
             solution_d_mu=(parameter, index),
             mu=mu,
+            input=input,
             **kwargs
         )
         return data['solution_d_mu']
 
-    def output_d_mu(self, mu=None, return_array=False, **kwargs):
+    def output_d_mu(self, mu=None, input=None, return_array=False, **kwargs):
         """Compute the gradient w.r.t. the parameter of the output functional.
 
         Parameters
         ----------
         mu
             |Parameter value| for which to compute the gradient
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         return_array
             if `True`, return the output gradient as a |NumPy array|.
             Otherwise, return a dict of gradients for each |Parameter|.
@@ -502,12 +541,13 @@ class Model(CacheableObject, ParametricObject):
         data = self.compute(
             output_d_mu=True,
             mu=mu,
+            input=input,
             output_d_mu_return_array=return_array,
             **kwargs
         )
         return data['output_d_mu']
 
-    def estimate_error(self, mu=None, **kwargs):
+    def estimate_error(self, mu=None, input=None, **kwargs):
         """Estimate the error for the computed internal state.
 
         For given |parameter values| `mu` this method returns an
@@ -523,6 +563,12 @@ class Model(CacheableObject, ParametricObject):
         ----------
         mu
             |Parameter values| for which to estimate the error.
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         kwargs
             Additional keyword arguments passed to :meth:`compute` that
             might affect how the error estimate (or the solution) is computed.
@@ -534,10 +580,11 @@ class Model(CacheableObject, ParametricObject):
         return self.compute(
             solution_error_estimate=True,
             mu=mu,
+            input=input,
             **kwargs
         )['solution_error_estimate']
 
-    def estimate_output_error(self, mu=None, **kwargs):
+    def estimate_output_error(self, mu=None, input=None, **kwargs):
         """Estimate the error for the computed output.
 
         For given |parameter values| `mu` this method returns an
@@ -553,6 +600,12 @@ class Model(CacheableObject, ParametricObject):
         ----------
         mu
             |Parameter values| for which to estimate the error.
+        input
+            The model input. Either a |NumPy array| of shape `(self.dim_input,)`,
+            a |Function| with `dim_domain == 1` and `shape_range == (self.dim_input,)`
+            mapping time to input, or a `str` expression whith `t` as variable that
+            can be used to instatiate an |ExpressionFunction| of this type.
+            Can be `None` if `self.dim_input == 0`.
         kwargs
             Additional keyword arguments passed to :meth:`compute` that
             might affect how the error estimate (or the output) is computed.
@@ -564,6 +617,7 @@ class Model(CacheableObject, ParametricObject):
         return self.compute(
             output_error_estimate=True,
             mu=mu,
+            input=input,
             **kwargs
         )['output_error_estimate']
 

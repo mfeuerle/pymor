@@ -6,18 +6,20 @@
 # DO NOT use any python features here that require 3.6 or newer
 
 _PYTEST = 'pytest>=4.4'
-_PYSIDE = 'PySide2!=5.15.2,!=5.15.2.*,!=5.11.*'
+# 5.12.* blocked due to https://bugreports.qt.io/browse/PYSIDE-1004
+# however the problem is not actually fixed in 5.12.3 as advertised
+_PYSIDE = 'PySide2!=5.15.2,!=5.15.2.*,!=5.11.*,!=5.12.*'
 
 
 def _numpy_scipy():
     # numpy versions with filters according to minimal version with a wheel
     numpys = [
-        'numpy>=1.15.4;python_version == "3.7"',
+        'numpy>=1.16.0;python_version == "3.7"',
         'numpy>=1.17.5;python_version == "3.8"',
         'numpy>=1.19.4;python_version >= "3.9"',
     ]
     scipys = [
-        'scipy>=1.1;python_version < "3.8"',
+        'scipy>=1.3;python_version < "3.8"',
         'scipy>=1.3.3;python_version == "3.8"',
         'scipy>=1.5.4;python_version >= "3.9"',
     ]
@@ -25,20 +27,18 @@ def _numpy_scipy():
 
 
 def setup_requires():
-    # setuptools pin in accordance with numpy: https://github.com/numpy/numpy/pull/17000,
-    # see also https://github.com/pypa/setuptools/pull/2260
-    # https://github.com/pypa/setuptools/pull/2259
     return [
-        'setuptools>=40.8.0,<49.2.0;python_version < "3.9"',
-        'setuptools>=49.1,<49.2.0;python_version >= "3.9"',
+        'setuptools',
         'wheel',
         'pytest-runner>=2.9',
         'packaging',
     ]
 
 
+# recheck if jupyter_client pin still necessary
+#   https://github.com/jupyter-widgets/pythreejs/issues/366
 # Qt bindings selectors are a woraround for https://bugreports.qt.io/browse/QTBUG-88688
-install_requires = ['qtpy', 'packaging', 'diskcache', 'typer', 'click'] + setup_requires() + _numpy_scipy()
+install_requires = ['qtpy', 'packaging', 'diskcache', 'typer', 'click'] + _numpy_scipy()
 install_suggests = {
     'ipython>=5.0': 'an enhanced interactive python shell',
     'ipyparallel>=6.2.5': 'required for pymor.parallel.ipython',
@@ -47,6 +47,7 @@ install_suggests = {
     'sympy': 'symbolic mathematics',
     'pygments': 'highlighting code',
     'pythreejs': 'threejs bindings for python notebook  visualization',
+    'jupyter_client>=7.0.6': 'necessary to explicitly state here to fix 3js',
     _PYTEST: 'testing framework required to execute unit tests',
     _PYSIDE: 'solution visualization for builtin discretizations',
     'ipywidgets': 'notebook GUI elements',
@@ -54,6 +55,8 @@ install_suggests = {
     'torch': 'PyTorch open source machine learning framework',
     'jupyter_contrib_nbextensions': 'modular collection of jupyter extensions',
     'pillow': 'image library used for bitmap data functions',
+    'dune-gdt>=2021.1.3': 'generic discretization toolbox',
+    'dune-xt>=2021.1.3': 'DUNE extensions for dune-gdt',
 }
 io_requires = ['pyevtk', 'xmljson', 'meshio>=4.4', 'lxml', 'gmsh']
 install_suggests.update({p: 'optional File I/O support libraries' for p in io_requires})
@@ -62,7 +65,7 @@ doc_requires = ['sphinx>=3.4', 'matplotlib', _PYSIDE, 'ipyparallel>=6.2.5', 'pyt
                 'sphinxcontrib-bibtex', 'sphinx-autoapi>=1.8', 'myst-nb'] + install_requires
 ci_requires = [_PYTEST, 'pytest-cov', 'pytest-xdist', 'check-manifest', 'nbconvert', 'pytest-parallel',
                'readme_renderer[md]', 'rstcheck', 'codecov', 'twine', 'pytest-memprof',
-               'flake8-rst-docstrings', 'flake8-docstrings', 'pytest-datadir',
+               'flake8-rst-docstrings', 'flake8-docstrings', 'pytest-datadir', 'pybind11',
                'docutils', "pypi-oldest-requirements>=2021.2", 'hypothesis[numpy,pytest]>=5.19',
                'PyQt5!=5.15.2,>5.7,!=5.15.2.*,!=5.15.4,!=5.15.3']
 import_names = {

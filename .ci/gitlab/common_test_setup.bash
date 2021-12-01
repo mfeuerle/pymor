@@ -9,16 +9,15 @@ fi
 export PYTHONPATH_PRE=${PYTHONPATH}
 export PYTHONPATH=${CI_PROJECT_DIR}/src:${PYTHONPATH}
 export PATH=~/.local/bin:${PATH}
+export PYBIND11_DIR=$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))")
 
 export PYMOR_ROOT="$(cd "$(dirname ${BASH_SOURCE[0]})" ; cd ../../ ; pwd -P )"
 cd "${PYMOR_ROOT}"
 # any failure here should fail the whole test
-set -eux
+#set -eux
 
 # switches default index to pypi-mirror service
-[[ -d ~/.config/pip/ ]] || mkdir -p ~/.config/pip/
-# check makes this script usable on OSX azure too
-[[ -e /usr/local/share/ci.pip.conf ]] && cp /usr/local/share/ci.pip.conf ~/.config/pip/pip.conf
+export PIP_CONFIG_FILE=/usr/local/share/ci.pip.conf
 
 # make sure image correct packages are baked into the image
 python src/pymor/scripts/check_reqs.py requirements.txt
@@ -28,7 +27,6 @@ python src/pymor/scripts/check_reqs.py requirements-optional.txt
 #allow xdist to work by fixing parametrization order
 export PYTHONHASHSEED=0
 
-python setup.py build_ext -i
 # workaround import mpl with no ~/.cache/matplotlib/fontconfig*.json
 # present segfaulting the interpreter
 python -c "from matplotlib import pyplot" || true

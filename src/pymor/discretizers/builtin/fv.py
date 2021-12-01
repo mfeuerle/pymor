@@ -15,7 +15,6 @@ from pymor.analyticalproblems.functions import Function, LincombFunction
 from pymor.analyticalproblems.instationary import InstationaryProblem
 from pymor.core.base import abstractmethod
 from pymor.core.defaults import defaults
-from pymor.tools.deprecated import Deprecated
 from pymor.discretizers.builtin.domaindiscretizers.default import discretize_domain_default
 from pymor.discretizers.builtin.grids.interfaces import GridWithOrthogonalCenters
 from pymor.discretizers.builtin.grids.referenceelements import line, triangle, square
@@ -697,11 +696,6 @@ class L2Functional(NumpyMatrixBasedOperator):
         return F_INTS.reshape((-1, 1))
 
 
-@Deprecated(L2Functional)
-def L2ProductFunctional(*args, **kwargs):
-    return L2Functional(*args, **kwargs)
-
-
 class BoundaryL2Functional(NumpyMatrixBasedOperator):
     """FV functional representing the inner product with an L2-|Function| on the boundary.
 
@@ -1070,7 +1064,9 @@ def discretize_stationary_fv(analytical_problem, diameter=None, domain_discretiz
                     outputs.append(BoundaryL2Functional(grid, v[1]).H)
         if len(outputs) > 1:
             from pymor.operators.block import BlockColumnOperator
+            from pymor.operators.constructions import NumpyConversionOperator
             output_functional = BlockColumnOperator(outputs)
+            output_functional = NumpyConversionOperator(output_functional.range) @ output_functional
         else:
             output_functional = outputs[0]
     else:

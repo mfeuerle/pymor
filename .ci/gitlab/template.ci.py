@@ -108,7 +108,7 @@ rules:
             - unknown_failure
             - job_execution_timeout
     {# this is intentionally NOT moving with CI_IMAGE_TAG #}
-    image: {{registry}}/pymor/docker-in-docker:d1b5ebb4dc42a77cae82411da2e503a88bb8fb3a
+    image: {{registry}}/pymor/docker-in-docker:2021.1.0
     variables:
         DOCKER_HOST: tcp://docker:2375/
         DOCKER_DRIVER: overlay2
@@ -137,14 +137,13 @@ rules:
     stage: install_checks
     {{ never_on_schedule_rule() }}
     services:
-      - name: {{registry}}/pymor/devpi:1
+      - name: {{registry}}/pymor/devpi:{{pypi_mirror_tag}}
         alias: pymor__devpi
     before_script:
       # bump to our minimal version
-      - python3 -m pip install -U pip==20.3.4
       - python3 -m pip install devpi-client
       - devpi use http://pymor__devpi:3141/root/public --set-cfg
-      - devpi login root --password none
+      - devpi login root --password ''
       - devpi upload --from-dir --formats=* ./dist/*.whl
     # the docker service adressing fails on other runners
     tags: [mike]
@@ -409,7 +408,7 @@ test_scripts = [
 ]
 # these should be all instances in the federation
 binder_urls = [f'https://{sub}.mybinder.org/build/gh/pymor/pymor' for sub in ('gke', 'ovh', 'gesis')]
-testos = [('fedora', '3.9'), ('debian_buster', '3.7'), ('debian_bullseye', '3.9')]
+testos = [('fedora', '3.9'), ('debian-buster', '3.7'), ('debian-bullseye', '3.9')]
 
 env_path = Path(os.path.dirname(__file__)) / '..' / '..' / '.env'
 env = dotenv_values(env_path)
