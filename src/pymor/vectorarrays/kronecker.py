@@ -5,6 +5,14 @@ from pymor.vectorarrays.interface import VectorArray, VectorSpace
 from pymor.vectorarrays.numpy import NumpyVectorSpace
 
 class KronVectorArray(VectorArray):
+    r"""|VectorArray| implementation for |KronProductOperator|.
+
+    |KronVectorArray| wraps an arbitray |VectorArray| for |KronProductOperator|.
+
+    .. warning::
+        This class is not intended to be instantiated directly. Use
+        the associated |KronVectorSpace| instead.
+    """
     def __init__(self, array, space):
         self._array = array
         self.space = space
@@ -131,20 +139,22 @@ class KronVectorArray(VectorArray):
 
 
 class KronVectorSpace(VectorSpace):
-    """
-    |VectorSpace| of vectors with dimension `size1`*`size2`, 
-    internally represented as `size1`x`size2` matricies, using some underling |VectorSpace|
-    for representing each matrix-shaped vector.
-    This |VectorSpace| is designed to wrap an arbitrary |VectorSpace| for the |KronProductOperator|.
+    r"""|VectorSpace| wrapper for |KronProductOperator|.
+
+    |KronVectorSpace| is designed to wrap an arbitrary |VectorSpace| for |KronProductOperator|.
+
+    While |KronVectorSpace| represents vectors of dimension :math:`nm`, they are internally stored as 
+    matricies of dimension :math:`n\times m` for efficient matrix-based operations within in 
+    |KronProductOperator|. For storing those matrix-shaped vectors, some underling |VectorSpace| is used.
 
     Parameters
     ----------
     size1
-        First dimension of the matrix-shaped vector.
+        First dimension :math:`n` of the matrix-shaped :math:`n\times m` vectors.
     size2
-        Second dimension of the matrix-shaped vector.
+        Second dimension :math:`m` of the matrix-shaped :math:`n\times m` vectors.
     base_space 
-        |VectorSpace| used to store the matrix-shaped vector.
+        |VectorSpace| used to store the matrix-shaped vectors.
         If `None`, |NumpyVectorSpace| is used.
     """
     def __init__(self, size1, size2, base_space=None, id=None):
@@ -202,10 +212,10 @@ class KronVectorSpace(VectorSpace):
         Parameters
         ----------
         data
-            |NumPy array| with len(data.shape) == 2 for a single vector, 
-            or len(data.shape) == 3 for multiple vectors.
-            For a single vector, we have data.shape[0] = `size1`, data.shape[1] = `size2`,
-            for multiple vectors, data.shape[0] = number of vectors, data.shape[1] = `size1`, data.shape[2] = `size2`
+            |NumPy array| with `len(data.shape) == 2` for a single vector, 
+            or `len(data.shape) == 3` for multiple vectors.
+            For a single vector, we have `data.shape[0] = size1`, `data.shape[1] = size2`,
+            for multiple vectors, `data.shape[0] = #vectors`, `data.shape[1] = size1`, `data.shape[2] = size2`.
         """
         if len(data.shape) == 2:
             assert data.shape[0] == self.size1 and data.shape[1] == self.size2
@@ -231,7 +241,7 @@ class KronVectorSpace(VectorSpace):
             Either a single |VectorArray| of the `base_space` or a |NumPy array| of |VectorArray|'s
         ensure_copy
             If `True`, `data` will be copied, otherwise, the ownership of `data` will be transferd to 
-            the new `KronVectorArray` without making a copy.
+            the new |KronVectorArray| without making a copy.
             Default: `False`
         deep
             If `True`, the data will imideatly be copied, otherwise, the data will only be copied if necessary.

@@ -4,41 +4,49 @@ from pymor.vectorarrays.kronecker import KronVectorSpace
 
 
 class KronProductOperator(Operator):
-    """
-    Represents the Kronecker product 
+    r"""Class for the Kronecker product operator.
 
-        (A (x) B)
+    This operator represents the Kronecker product (or Tensor product)
 
-    of two liner |Operator| A and B. If A is an n x m matrix, and B a p x k matrix, 
-        the Kronecker product (A (x) B) represents a np x mk matrix.
+    .. math::
+        A \otimes B(\mu) := 
+        \begin{pmatrix}
+        a_{1,1} B(\mu) & \dots & a_{1,m}B(\mu) \\
+        \vdots &\ddots &\vdots \\
+        a_{n,1} B(\mu) & \dots & a_{n,m} B(\mu) \end{pmatrix},
+        \qquad
+        A \otimes B(\mu) : \mathbb{R}^{np} \rightarrow \mathbb{R}^{mk},
+    
+    of a matrix operator :math:`A \in \mathbb{R}^{n \times m}` and a |Operator| :math:`B(\mu) : \mathbb{R}^{p} \rightarrow \mathbb{R}^{k}`.
 
     Attributes
     ----------
     source
-        |KronVectorSpace| of dimension p x n
+        |KronVectorSpace| of dimension :math:`p \times n`
     range
-        |KronVectorSpace| of dimension k x m
+        |KronVectorSpace| of dimension :math:`k \times m`
     base_space
         Underling |VectorSpace|, used in `source` and `range`.
 
     Parameters
     ----------
     A
-        |NumPy array| representing the first linear |Operator| as matrix
+        First matrix operator as |NumPy array|.
     B
-        Some (arbitrary) linear |Operator|
+        Second |Operator|.
     base_space
         The underling |VectorSpace| used in the |KronVectorSpace| for `source` and `range`. 
         If `None`, the default space, defined in |KronVectorSpace| will be used.
     """
 
-    linear = True
+    #linear = True
 
     # A has to be a numpy matrix
     def __init__(self, A, B, base_space=None, source_id=None, range_id=None, name=None):
-        assert B.linear
+        # assert B.linear   # code should work for nonlin too?
         self.source = KronVectorSpace(B.source.dim, A.shape[0], base_space, source_id)
         self.range  = KronVectorSpace(B.range.dim , A.shape[1], base_space, range_id)
+        self.linear = B.linear
         self.__auto_init(locals())
 
     def apply(self, U, mu=None):
