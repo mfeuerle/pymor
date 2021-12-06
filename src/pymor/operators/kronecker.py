@@ -1,5 +1,6 @@
-from pymor.operators.interface import Operator
+import numpy as np
 
+from pymor.operators.interface import Operator
 from pymor.vectorarrays.kronecker import KronVectorSpace
 
 
@@ -17,7 +18,11 @@ class KronProductOperator(Operator):
         \qquad
         A \otimes B(\mu) : \mathbb{R}^{np} \rightarrow \mathbb{R}^{mk},
     
-    of a matrix operator :math:`A \in \mathbb{R}^{n \times m}` and a |Operator| :math:`B(\mu) : \mathbb{R}^{p} \rightarrow \mathbb{R}^{k}`.
+    of a matrix operator :math:`A \in \mathbb{R}^{n \times m}` and a linear |Operator| :math:`B(\mu) : \mathbb{R}^{p} \rightarrow \mathbb{R}^{k}`.
+
+    .. todo::
+        Support for sparse maticies A.
+        Support for parameter dependent operators A possible?
 
     Attributes
     ----------
@@ -33,17 +38,17 @@ class KronProductOperator(Operator):
     A
         First matrix operator as |NumPy array|.
     B
-        Second |Operator|.
+        Linear |Operator|.
     base_space
         The underling |VectorSpace| used in the |KronVectorSpace| for `source` and `range`. 
         If `None`, the default space, defined in |KronVectorSpace| will be used.
     """
 
-    #linear = True
+    linear = True
 
-    # A has to be a numpy matrix
     def __init__(self, A, B, base_space=None, source_id=None, range_id=None, name=None):
-        # assert B.linear   # code should work for nonlin too?
+        assert B.linear
+        assert isinstance(A,np.ndarray)
         self.source = KronVectorSpace(B.source.dim, A.shape[0], base_space, source_id)
         self.range  = KronVectorSpace(B.range.dim , A.shape[1], base_space, range_id)
         self.linear = B.linear
