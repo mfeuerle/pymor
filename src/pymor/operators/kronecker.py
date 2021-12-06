@@ -21,7 +21,7 @@ class KronProductOperator(Operator):
     of a matrix operator :math:`A \in \mathbb{R}^{n \times m}` and a linear |Operator| :math:`B(\mu) : \mathbb{R}^{p} \rightarrow \mathbb{R}^{k}`.
 
     .. todo::
-        Support for sparse maticies A.
+        Support for sparse maticies A (limited due to VectorSpace.lincomb(coefs) expects numpy array).
         Support for parameter dependent operators A possible?
 
     Attributes
@@ -48,7 +48,7 @@ class KronProductOperator(Operator):
 
     def __init__(self, A, B, base_space=None, source_id=None, range_id=None, name=None):
         assert B.linear
-        assert isinstance(A,np.ndarray)
+        assert isinstance(A, np.ndarray)
         self.source = KronVectorSpace(B.source.dim, A.shape[0], base_space, source_id)
         self.range  = KronVectorSpace(B.range.dim , A.shape[1], base_space, range_id)
         self.linear = B.linear
