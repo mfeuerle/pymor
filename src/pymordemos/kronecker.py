@@ -12,7 +12,10 @@ A = 0.5*(A+A.T) + K*np.eye(K)
 B = 0.5*(B+B.T) + n*np.eye(n)
 
 B_ = NumpyMatrixOperator(B)
-T = KronProductOperator(A,B_)
+A_ = NumpyMatrixOperator(A)
+
+# T = KronProductOperator(A,B_)
+T = KronProductOperator(A_,B_)
 
 
 print('\n')

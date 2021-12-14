@@ -2,6 +2,7 @@ import numpy as np
 
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.kronecker import KronVectorSpace
+from pymor.operators.numpy import NumpyMatrixBasedOperator
 
 
 class KronProductOperator(Operator):
@@ -22,7 +23,8 @@ class KronProductOperator(Operator):
 
     .. todo::
         Support for sparse maticies A (limited due to VectorSpace.lincomb(coefs) expects numpy array).
-        Support for parameter dependent operators A possible?
+        Support for parameter dependent operators A possible? (To avoid overhead, B.parametric==True could be usefull)
+        Operator is not Lincomb, even if A and B are, function ".to_lincomb() if possible" could be usefull
 
     Attributes
     ----------
@@ -48,10 +50,18 @@ class KronProductOperator(Operator):
 
     def __init__(self, A, B, base_space=None, source_id=None, range_id=None, name=None):
         assert B.linear
-        assert isinstance(A, np.ndarray)
+        assert isinstance(A, NumpyMatrixBasedOperator) or isinstance(A, np.ndarray)
+
+        if isinstance(A, NumpyMatrixBasedOperator):
+            assert A.parametric == False
+            A = A.assemble()
+            #if A.sparse:
+                #   # lincomb does not take sparse or does it?
+            A = A.as_source_array().to_numpy()
+        
         self.source = KronVectorSpace(B.source.dim, A.shape[0], base_space, source_id)
         self.range  = KronVectorSpace(B.range.dim , A.shape[1], base_space, range_id)
-        self.linear = B.linear
+        # self.parametric = B.parametric
         self.__auto_init(locals())
 
     def apply(self, U, mu=None):

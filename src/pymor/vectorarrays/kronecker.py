@@ -203,7 +203,7 @@ class KronVectorSpace(VectorSpace):
         assert count >= 0
         va = KronVectorArray(np.empty(count, dtype=self.base_vector_type), self)
         for i in range(0, count):
-            va._array[i] = self.base_space.random(count=self.size2, distribution='uniform', random_state=None, seed=None, reserve=0, **kwargs)
+            va._array[i] = self.base_space.random(count=self.size2, distribution=distribution, random_state=random_state, seed=seed, reserve=0, **kwargs)
         va._len = count
         return va
 
