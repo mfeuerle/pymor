@@ -22,6 +22,7 @@ class KronVectorArray(VectorArray):
         return self._len
 
     def __getitem__(self, ind):
+        # Passibly safty problem since there is no propper View implementation
         assert self.check_ind(ind)
         return self.space.make_array(self._array[ind], ensure_copy=False)
 
@@ -38,11 +39,26 @@ class KronVectorArray(VectorArray):
         self._len = len(self._array)
     
     def append(self, other, remove_from_other=False):
-        if remove_from_other:
-            self._array = np.append(self._array, other._array)
+        assert ( (other in self.space) and self.space.size1 == other.space.size1 and self.space.size2 == other.space.size2 ) \
+            or ( (other in self.space.base_space) and self.space.size1 == other.dim and self.space.size2 == len(other) )
+
+        if other in self.space:
+            len_other = other._len
+            if len_other == 0:
+                return
+            if len_other <= self._array.shape[0] - self._len:
+                self._array[self._len:self._len + len_other] = other._array[:len_other]
+            else:
+                self._array = np.append(self._array[:self._len], other._array, axis=0)
+            self._len += len_other
+            if remove_from_other:
+                del other[:]
         else:
-            self._array = np.append(self._array, other.copy()._array)
-        self._len = len(self._array)
+            if self._array.shape[0] - self._len >= 1:
+                self._array[self._len] = other
+            else:
+                self._array = np.append(self._array, [other], axis=0)
+            self._len += 1
 
     def copy(self, deep=False):
         return self.space.make_array(self._array, ensure_copy=True, deep=deep)        
@@ -62,17 +78,17 @@ class KronVectorArray(VectorArray):
         if isinstance(alpha, Number):
             if x._len == 1:
                 for i in range(0,self._len):
-                    self._array[i] = self._array[i].axpy(alpha,x._array[0])
+                    self._array[i].axpy(alpha,x._array[0])
             else:
                 for i in range(0,self._len):
                     self._array[i].axpy(alpha,x._array[i])
         else:
             if x._len == 1:
                 for i in range(0,self._len):
-                    self._array[i] = self._array[i].axpy(alpha[i],x._array[0])
+                    self._array[i].axpy(alpha[i],x._array[0])
             else:
                 for i in range(0,self._len):
-                    self._array[i] = self._array[i].axpy(alpha[i],x._array[i])
+                    self._array[i].axpy(alpha[i],x._array[i])
 
     def lincomb(self, coefficients, _ind=None):
         assert 1<= len(coefficients.shape) <=2
@@ -147,6 +163,9 @@ class KronVectorSpace(VectorSpace):
     matricies of dimension :math:`n\times m` for efficient matrix-based operations within in 
     |KronProductOperator|. For storing those matrix-shaped vectors, some underling |VectorSpace| is used.
 
+    .. todo::
+        Whole part with `reserve` is not efficient and most likly buggy. 
+
     Parameters
     ----------
     size1
@@ -178,14 +197,16 @@ class KronVectorSpace(VectorSpace):
         return hash(self.dim) + hash(self.id)
 
     def empty(self, reserve=0):
+        # does not reserv any space
         assert reserve >= 0
         va = KronVectorArray(np.empty(reserve, dtype=self.base_vector_type), self)
-        va._len = reserve
+        va._len = 0
         return va
 
-    def zeros(self, count=1):
+    def zeros(self, count=1, reserve=0):
         assert count >= 0
-        va = KronVectorArray(np.empty(count, dtype=self.base_vector_type), self)
+        assert reserve >= 0
+        va = KronVectorArray(np.empty(np.max(count,reserve), dtype=self.base_vector_type), self)
         for i in range(0, count):
             va._array[i] =  self.base_space.zeros(count=self.size2)
         va._len = count
@@ -193,16 +214,17 @@ class KronVectorSpace(VectorSpace):
 
     def full(self, value, count=1, reserve=0):
         assert count >= 0
-        count = np.max([count,reserve])
-        va = KronVectorArray(np.empty(count, dtype=self.base_vector_type), self)
+        assert reserve >= 0
+        va = KronVectorArray(np.empty(np.max([count,reserve]), dtype=self.base_vector_type), self)
         for i in range(0, count):
             va._array[i] = self.base_space.full(value, count=self.size2)
         va._len = count
         return va
 
-    def random(self, count=1, distribution='uniform', random_state=None, seed=None, **kwargs):
+    def random(self, count=1, distribution='uniform', random_state=None, seed=None, reserve=0, **kwargs):
         assert count >= 0
-        va = KronVectorArray(np.empty(count, dtype=self.base_vector_type), self)
+        assert reserve >= 0
+        va = KronVectorArray(np.empty(np.max([count,reserve]), dtype=self.base_vector_type), self)
         for i in range(0, count):
             va._array[i] = self.base_space.random(count=self.size2, distribution=distribution, random_state=random_state, seed=seed, reserve=0, **kwargs)
         va._len = count

@@ -32,8 +32,6 @@ class KronProductOperator(Operator):
         |KronVectorSpace| of dimension :math:`p \times n`
     range
         |KronVectorSpace| of dimension :math:`k \times m`
-    base_space
-        Underling |VectorSpace|, used in `source` and `range`.
 
     Parameters
     ----------
@@ -41,14 +39,11 @@ class KronProductOperator(Operator):
         First matrix operator as |NumPy array|.
     B
         Linear |Operator|.
-    base_space
-        The underling |VectorSpace| used in the |KronVectorSpace| for `source` and `range`. 
-        If `None`, the default space, defined in |KronVectorSpace| will be used.
     """
 
     linear = True
 
-    def __init__(self, A, B, base_space=None, source_id=None, range_id=None, name=None):
+    def __init__(self, A, B, source_id=None, range_id=None, name=None):
         assert B.linear
         assert isinstance(A, NumpyMatrixBasedOperator) or isinstance(A, np.ndarray)
 
@@ -59,8 +54,8 @@ class KronProductOperator(Operator):
                 #   # lincomb does not take sparse or does it?
             A = A.as_source_array().to_numpy()
         
-        self.source = KronVectorSpace(B.source.dim, A.shape[0], base_space, source_id)
-        self.range  = KronVectorSpace(B.range.dim , A.shape[1], base_space, range_id)
+        self.source = KronVectorSpace(B.source.dim, A.shape[0], B.source, source_id)
+        self.range  = KronVectorSpace(B.range.dim , A.shape[1], B.range, range_id)
         # self.parametric = B.parametric
         self.__auto_init(locals())
 
@@ -69,5 +64,5 @@ class KronProductOperator(Operator):
         BUA = self.range.empty(reserve=len(U))
         for i in range(0, len(U)):
             # does lincomb profit from sparse matrix?
-            BUA._array[i] = self.B.apply(U._array[i], mu=mu).lincomb(self.A)
+            BUA.append(self.B.apply(U._array[i], mu=mu).lincomb(self.A))
         return BUA
