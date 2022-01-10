@@ -191,8 +191,9 @@ class KronVectorSpace(VectorSpace):
         va._len = count
         return va
 
-    def full(self, value, count=1):
+    def full(self, value, count=1, reserve=0):
         assert count >= 0
+        count = np.max([count,reserve])
         va = KronVectorArray(np.empty(count, dtype=self.base_vector_type), self)
         for i in range(0, count):
             va._array[i] = self.base_space.full(value, count=self.size2)
