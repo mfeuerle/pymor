@@ -23,8 +23,8 @@ class KronProductOperator(Operator):
 
     .. todo::
         Support for sparse maticies A (limited due to VectorSpace.lincomb(coefs) expects numpy array).
-        Support for parameter dependent operators A possible? (To avoid overhead, B.parametric==True could be usefull)
-        Operator is not Lincomb, even if A and B are, function ".to_lincomb() if possible" could be usefull
+        Support for parameter dependent operators A possible? (To avoid overhead, A.parametric==True could be usefull)
+        Rule Tables for this Operator needed s.t. it can be transfered to a affine operator?
 
     Attributes
     ----------
@@ -54,8 +54,8 @@ class KronProductOperator(Operator):
                 #   # lincomb does not take sparse or does it?
             A = A.as_source_array().to_numpy()
         
-        self.source = KronVectorSpace(B.source.dim, A.shape[0], B.source, source_id)
-        self.range  = KronVectorSpace(B.range.dim , A.shape[1], B.range, range_id)
+        self.source = KronVectorSpace(B.source.dim, A.shape[1], B.source, source_id)
+        self.range  = KronVectorSpace(B.range.dim , A.shape[0], B.range, range_id)
         # self.parametric = B.parametric
         self.__auto_init(locals())
 
@@ -66,3 +66,11 @@ class KronProductOperator(Operator):
             # does lincomb profit from sparse matrix?
             BUA.append(self.B.apply(U._array[i], mu=mu).lincomb(self.A))
         return BUA
+    
+    def as_source_array(self, mu=None):
+        B = self.B.as_source_array(mu)
+        AB = self.source.empty(reserve=self.range.dim)
+        for j in range(0,self.A.shape[0]):
+            for i in range(0,len(B)):
+                AB.append(B[i].lincomb(np.reshape(self.A[j,:],(self.A.shape[1],1))))
+        return AB
