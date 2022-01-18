@@ -140,9 +140,9 @@ class KronVectorArray(VectorArray):
         return NotImplementedError
 
     def to_numpy(self, ensure_copy=False):
-        data = np.empty((self._len, self._array[0].dim, len(self._array[0])))
+        data = np.empty((self._len, self._array[0].dim*len(self._array[0])))
         for i in range(0,self._len):
-            data[i] = self._array[i].to_numpy(ensure_copy=ensure_copy).T
+            data[i] = np.reshape(self._array[i].to_numpy(ensure_copy=ensure_copy), (self._array[0].dim*len(self._array[0]),))
         return data
 
     def __str__(self):
@@ -163,8 +163,6 @@ class KronVectorSpace(VectorSpace):
     matricies of dimension :math:`n\times m` for efficient matrix-based operations within in 
     |KronProductOperator|. For storing those matrix-shaped vectors, some underling |VectorSpace| is used.
 
-    .. todo::
-        Whole part with `reserve` is not efficient and most likly buggy. 
 
     Parameters
     ----------
@@ -197,7 +195,6 @@ class KronVectorSpace(VectorSpace):
         return hash(self.dim) + hash(self.id)
 
     def empty(self, reserve=0):
-        # does not reserv any space
         assert reserve >= 0
         va = KronVectorArray(np.empty(reserve, dtype=self.base_vector_type), self)
         va._len = 0
@@ -206,7 +203,7 @@ class KronVectorSpace(VectorSpace):
     def zeros(self, count=1, reserve=0):
         assert count >= 0
         assert reserve >= 0
-        va = KronVectorArray(np.empty(np.max(count,reserve), dtype=self.base_vector_type), self)
+        va = KronVectorArray(np.empty(np.max([count,reserve]), dtype=self.base_vector_type), self)
         for i in range(0, count):
             va._array[i] =  self.base_space.zeros(count=self.size2)
         va._len = count
