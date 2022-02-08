@@ -27,7 +27,7 @@ for i in range(0, 5):
     x = T.source.from_numpy(X)
     Tx = T.apply(x)
 
-    print(f'\tError: {np.linalg.norm(BXAt-Tx.to_numpy())}')
+    print(f'\tError: {np.linalg.norm(BXAt.T.reshape((1,-1))-Tx.to_numpy())}')
 
 X = T.source.random(3)
 X.lincomb(np.array([[1, 1, 1],[2, 2, 2]]))

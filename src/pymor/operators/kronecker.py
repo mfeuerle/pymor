@@ -2,7 +2,7 @@ import numpy as np
 
 from pymor.operators.interface import Operator
 from pymor.vectorarrays.kronecker import KronVectorSpace
-from pymor.operators.numpy import NumpyMatrixBasedOperator
+from pymor.algorithms.to_matrix import to_matrix
 
 
 class KronProductOperator(Operator):
@@ -36,7 +36,7 @@ class KronProductOperator(Operator):
     Parameters
     ----------
     A
-        First matrix operator as |NumPy array|.
+        Linear non-parametric |Operator| suppertet by |to_matrix()| or |NumPy array| matrix representation.
     B
         Linear |Operator|.
     """
@@ -45,25 +45,21 @@ class KronProductOperator(Operator):
 
     def __init__(self, A, B, source_id=None, range_id=None, name=None):
         assert B.linear
-        assert isinstance(A, NumpyMatrixBasedOperator) or isinstance(A, np.ndarray)
+        assert (isinstance(A, Operator) and A.parametric == False) or isinstance(A, np.ndarray)
 
-        if isinstance(A, NumpyMatrixBasedOperator):
-            assert A.parametric == False
-            A = A.assemble()
-            #if A.sparse:
-                #   # lincomb does not take sparse or does it?
-            A = A.as_source_array().to_numpy()
+        if isinstance(A, Operator):
+            A = to_matrix(A)    # alternative: A = A.as_source_array().to_numpy()
+            # if A.sparse: does lincomb profit from or even take sparse matricies?
         
         self.source = KronVectorSpace(B.source.dim, A.shape[1], B.source, source_id)
-        self.range  = KronVectorSpace(B.range.dim , A.shape[0], B.range, range_id)
-        # self.parametric = B.parametric
+        self.range  = KronVectorSpace(B.range.dim , A.shape[0], B.range , range_id)
         self.__auto_init(locals())
 
     def apply(self, U, mu=None):
         assert U in self.source
         BUA = self.range.empty(reserve=len(U))
         for i in range(0, len(U)):
-            # does lincomb profit from sparse matrix?
+            # does lincomb profit from or even take sparse matricies?
             BUA.append(self.B.apply(U._array[i], mu=mu).lincomb(self.A))
         return BUA
     
