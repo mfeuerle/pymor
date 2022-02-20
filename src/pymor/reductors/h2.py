@@ -65,7 +65,7 @@ class GenericIRKAReductor(BasicObject):
         elif isinstance(rom0_params, np.ndarray):
             assert rom0_params.ndim == 1
         elif isinstance(rom0_params, dict):
-            assert ('sigma', 'b', 'c') in rom0_params
+            assert {'sigma', 'b', 'c'} <= rom0_params.keys()
             assert isinstance(rom0_params['sigma'], np.ndarray)
             assert isinstance(rom0_params['b'], np.ndarray)
             assert isinstance(rom0_params['c'], np.ndarray)
@@ -77,7 +77,7 @@ class GenericIRKAReductor(BasicObject):
         elif isinstance(rom0_params, LTIModel):
             assert rom0_params.order > 0
             if hasattr(self.fom, 'order'):  # self.fom can be a TransferFunction
-                assert rom0_params < self.fom.order
+                assert rom0_params.order < self.fom.order
             assert rom0_params.dim_input == self.fom.dim_input
             assert rom0_params.dim_output == self.fom.dim_output
         else:
@@ -260,7 +260,7 @@ class IRKAReductor(GenericIRKAReductor):
         rom
             Reduced |LTIModel| model.
         """
-        if not self.fom.cont_time:
+        if self.fom.sampling_time > 0:
             raise NotImplementedError
 
         self._clear_lists()
@@ -372,7 +372,7 @@ class OneSidedIRKAReductor(GenericIRKAReductor):
         rom
             Reduced |LTIModel| model.
         """
-        if not self.fom.cont_time:
+        if self.fom.sampling_time > 0:
             raise NotImplementedError
 
         self._clear_lists()
@@ -502,7 +502,7 @@ class TSIAReductor(GenericIRKAReductor):
         rom
             Reduced |LTIModel|.
         """
-        if not self.fom.cont_time:
+        if self.fom.sampling_time > 0:
             raise NotImplementedError
 
         self._clear_lists()
@@ -620,7 +620,7 @@ class TFIRKAReductor(GenericIRKAReductor):
         rom
             Reduced |LTIModel| model.
         """
-        if not self.fom.cont_time:
+        if self.fom.sampling_time > 0:
             raise NotImplementedError
 
         self._clear_lists()
@@ -721,7 +721,7 @@ class GapIRKAReductor(GenericIRKAReductor):
         rom
             Reduced |LTIModel| model.
         """
-        if not self.fom.cont_time:
+        if self.fom.sampling_time > 0:
             raise NotImplementedError
 
         self._clear_lists()
